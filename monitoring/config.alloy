@@ -16,7 +16,7 @@ prometheus.scrape "backspin_maestro" {
   scrape_interval = "15s"
 
   authorization {
-    credentials = env("METRICS_TOKEN")
+    credentials = sys.env("METRICS_TOKEN")
   }
 
   forward_to = [prometheus.remote_write.grafana_cloud.receiver]
@@ -24,11 +24,11 @@ prometheus.scrape "backspin_maestro" {
 
 prometheus.remote_write "grafana_cloud" {
   endpoint {
-    url = env("GRAFANA_PROM_URL")
+    url = sys.env("GRAFANA_PROM_URL")
 
     basic_auth {
-      username = env("GRAFANA_PROM_USER")
-      password = env("GRAFANA_PROM_KEY")
+      username = sys.env("GRAFANA_PROM_USER")
+      password = sys.env("GRAFANA_PROM_KEY")
     }
   }
 }
