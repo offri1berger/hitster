@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface Props {
@@ -15,7 +16,13 @@ const STEPS: [string, string][] = [
 
 const HowToPlayModal = ({ onClose }: Props) => {
   const [section, setSection] = useState(0)
+  const [direction, setDirection] = useState(1)
   const trapRef = useFocusTrap<HTMLDivElement>(true)
+
+  const goTo = (next: number) => {
+    setDirection(next > section ? 1 : -1)
+    setSection(next)
+  }
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -179,7 +186,7 @@ const HowToPlayModal = ({ onClose }: Props) => {
           {sections.map((sec, i) => (
             <button
               key={i}
-              onClick={() => setSection(i)}
+              onClick={() => goTo(i)}
               className="px-3.5 py-2 rounded-lg border-0 cursor-pointer font-mono text-[10px] tracking-[.18em] uppercase font-bold transition-all duration-150"
               style={
                 section === i
@@ -194,20 +201,31 @@ const HowToPlayModal = ({ onClose }: Props) => {
 
         {/* content */}
         <div
-          className="flex-1 overflow-y-auto px-6 py-5 text-[var(--color-muted)] text-[14px] leading-relaxed"
+          className="flex-1 overflow-hidden text-[var(--color-muted)] text-[14px] leading-relaxed"
           style={{ background: 'rgba(26,26,28,.6)' }}
         >
-          <div className="flex items-baseline gap-3.5 mb-4">
-            <div className="font-display text-[40px] text-accent leading-none">{s.icon}</div>
-            <div className="font-display text-[26px] text-cream leading-tight">{s.title}</div>
-          </div>
-          {s.content}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={section}
+              initial={{ opacity: 0, x: direction * 32 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction * -32 }}
+              transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+              className="h-full overflow-y-auto px-6 py-5"
+            >
+              <div className="flex items-baseline gap-3.5 mb-4">
+                <div className="font-display text-[40px] text-accent leading-none">{s.icon}</div>
+                <div className="font-display text-[26px] text-cream leading-tight">{s.title}</div>
+              </div>
+              {s.content}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* footer nav */}
         <div className="px-6 py-3.5 flex items-center justify-between gap-3 shrink-0" style={{ borderTop: '1px solid rgba(255,212,0,.1)' }}>
           <button
-            onClick={() => setSection(Math.max(0, section - 1))}
+            onClick={() => goTo(Math.max(0, section - 1))}
             disabled={section === 0}
             className="px-3.5 py-2 rounded-lg border-0 font-mono text-[11px] tracking-[.18em] uppercase cursor-pointer transition-all"
             style={{
@@ -223,7 +241,7 @@ const HowToPlayModal = ({ onClose }: Props) => {
             {sections.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setSection(i)}
+                onClick={() => goTo(i)}
                 aria-label={`Section ${i + 1}`}
                 className="h-2 rounded-full border-0 cursor-pointer transition-all duration-200 p-0"
                 style={{
@@ -236,7 +254,7 @@ const HowToPlayModal = ({ onClose }: Props) => {
 
           {section < sections.length - 1 ? (
             <button
-              onClick={() => setSection(section + 1)}
+              onClick={() => goTo(section + 1)}
               className="px-4 py-2 rounded-lg border-0 cursor-pointer font-mono text-[11px] tracking-[.18em] uppercase font-bold text-[#1a1a1c]"
               style={{ background: 'linear-gradient(135deg, var(--color-accent), var(--color-hot))' }}
             >

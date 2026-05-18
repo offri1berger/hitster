@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useIsMobile } from '../../hooks/useMediaQuery'
@@ -20,6 +20,10 @@ export const StealOverlay = ({ countdown, onStealAttempt, onClose }: Props) => {
   const [pendingPosition, setPendingPosition] = useState<number | null>(stealOriginalPosition)
   const trapRef = useFocusTrap<HTMLDivElement>(true)
   const isMobile = useIsMobile()
+  const totalRef = useRef(countdown)
+  useEffect(() => {
+    if (countdown > totalRef.current) totalRef.current = countdown
+  }, [countdown])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -62,13 +66,24 @@ export const StealOverlay = ({ countdown, onStealAttempt, onClose }: Props) => {
           </button>
         </div>
 
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-4">
           <LedDisplay
             color={isDanger ? 'red' : 'yellow'}
             className={`text-[44px] px-[22px] py-3 min-w-[100px] text-center ${isDanger ? '[animation:steal-pulse_0.9s_infinite]' : ''}`}
           >
             {countdown}s
           </LedDisplay>
+        </div>
+
+        <div className="h-2 rounded-full overflow-hidden bg-white/[.08] mb-5">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${(countdown / totalRef.current) * 100}%`,
+              background: countdown > 6 ? 'var(--color-good)' : countdown > 3 ? 'var(--color-accent)' : 'var(--color-bad)',
+              transition: 'width 1s linear, background-color 0.4s ease',
+            }}
+          />
         </div>
 
         <p className="text-center mb-5 text-sm text-[var(--color-muted)]">

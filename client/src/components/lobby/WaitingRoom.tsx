@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { Player, DecadeFilter, RoomSettings, UpdateRoomSettingsResult } from '@backspin-maestro/shared'
 import { MIN_SONGS_PER_PLAYER, MAX_SONGS_PER_PLAYER } from '@backspin-maestro/shared'
 import { useGameStore } from '../../store/gameStore'
@@ -322,14 +323,20 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
 
           <div className="mt-9 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 justify-items-center items-center">
             {players.map((p, i) => (
-              <PlayerPolaroid
+              <motion.div
                 key={p.id}
-                player={p}
-                index={i}
-                offline={disconnectedPlayerIds.includes(p.id)}
-                canKick={isHost && p.id !== playerId}
-                isNew={recentlyJoined.has(p.id)}
-              />
+                initial={{ opacity: 0, y: 18, scale: 0.88 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 480, damping: 36, delay: i * 0.05 }}
+              >
+                <PlayerPolaroid
+                  player={p}
+                  index={i}
+                  offline={disconnectedPlayerIds.includes(p.id)}
+                  canKick={isHost && p.id !== playerId}
+                  isNew={recentlyJoined.has(p.id)}
+                />
+              </motion.div>
             ))}
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
@@ -347,14 +354,24 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           {isHost ? (
             <>
-              <PlasticButton
-                onClick={onStart}
-                disabled={!ready}
-                color="green"
-                className="flex-1 h-[60px] text-[16px] flex items-center justify-center gap-2"
+              <motion.div
+                key={String(ready)}
+                initial={{ scale: 0.96, opacity: 0.6 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="flex-1"
+                whileHover={ready ? { scale: 1.015 } : undefined}
+                whileTap={ready ? { scale: 0.97 } : undefined}
               >
-                ▶ HIT PLAY · START THE SHOW
-              </PlasticButton>
+                <PlasticButton
+                  onClick={onStart}
+                  disabled={!ready}
+                  color="green"
+                  className="w-full h-[60px] text-[16px] flex items-center justify-center gap-2"
+                >
+                  ▶ HIT PLAY · START THE SHOW
+                </PlasticButton>
+              </motion.div>
               <PlasticButton
                 onClick={onLeave}
                 color="dark"
@@ -363,6 +380,7 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
                 EJECT
               </PlasticButton>
             </>
+
           ) : (
             <div
               className="flex-1 h-[60px] flex items-center justify-center font-display text-xs tracking-[0.1em] rounded-[10px] bg-[#0a0a0a] border-2 border-[var(--color-muted-2)] text-[var(--color-muted)]"
@@ -381,35 +399,45 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
 
       {showRules && <HowToPlayModal onClose={() => setShowRules(false)} />}
 
-      {showQR && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowQR(false)}
-        >
-          <div
-            className="relative panel-hardware brushed-dark flex flex-col items-center gap-5 p-8 rounded-2xl [box-shadow:0_24px_60px_rgba(0,0,0,.8)] max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {showQR && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowQR(false)}
           >
-            <Sticker color="cyan" rotate={-3} size="sm" className="absolute -top-3 left-5">SCAN TO JOIN</Sticker>
-            <button
-              onClick={() => setShowQR(false)}
-              aria-label="Close QR code"
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full cursor-pointer flex items-center justify-center bg-[#0a0a0a] text-bad border-2 border-bad [box-shadow:0_2px_0_#000] text-sm font-bold leading-none"
+            <motion.div
+              initial={{ scale: 0.82, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.82, opacity: 0, y: 12 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+              className="relative panel-hardware brushed-dark flex flex-col items-center gap-5 p-8 rounded-2xl [box-shadow:0_24px_60px_rgba(0,0,0,.8)] max-w-[90vw]"
+              onClick={(e) => e.stopPropagation()}
             >
-              ✕
-            </button>
-            <div className="p-4 bg-white rounded-xl [box-shadow:0_8px_24px_rgba(0,0,0,.6)]">
-              <QRCodeSVG value={joinUrl} size={220} />
-            </div>
-            <LedDisplay color="cyan" className="text-[28px] tracking-[.3em] py-3 px-6">
-              {roomCode}
-            </LedDisplay>
-            <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--color-muted)] text-center max-w-[260px] break-all">
-              {joinUrl}
-            </span>
-          </div>
-        </div>
-      )}
+              <Sticker color="cyan" rotate={-3} size="sm" className="absolute -top-3 left-5">SCAN TO JOIN</Sticker>
+              <button
+                onClick={() => setShowQR(false)}
+                aria-label="Close QR code"
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full cursor-pointer flex items-center justify-center bg-[#0a0a0a] text-bad border-2 border-bad [box-shadow:0_2px_0_#000] text-sm font-bold leading-none"
+              >
+                ✕
+              </button>
+              <div className="p-4 bg-white rounded-xl [box-shadow:0_8px_24px_rgba(0,0,0,.6)]">
+                <QRCodeSVG value={joinUrl} size={220} />
+              </div>
+              <LedDisplay color="cyan" className="text-[28px] tracking-[.3em] py-3 px-6">
+                {roomCode}
+              </LedDisplay>
+              <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--color-muted)] text-center max-w-[260px] break-all">
+                {joinUrl}
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

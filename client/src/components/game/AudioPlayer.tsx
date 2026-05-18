@@ -52,6 +52,7 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
+  const [pendingPlay, setPendingPlay] = useState<{ currentTime: number; at: number } | null>(null)
   const hasPreview = !!song.previewUrl
 
   const placementResult = useGameStore((s) => s.placementResult)
@@ -63,26 +64,20 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
   }, [song.id])
 
   useEffect(() => {
-    const el = audioRef.current
-    if (!el) return
-    const unlock = () => {
-      if (!el.paused) return  // already playing — don't interrupt
-      const wasMuted = el.muted
-      el.muted = true
-      el.play().then(() => { el.pause(); el.currentTime = 0; el.muted = wasMuted }).catch(() => {})
-    }
-    window.addEventListener('pointerdown', unlock, { once: true })
-    return () => window.removeEventListener('pointerdown', unlock)
-  }, [])
-
-  useEffect(() => {
     const onRemotePlay = ({ currentTime, serverTime }: { currentTime: number; serverTime: number }) => {
       if (!audioRef.current || !song.previewUrl) return
       const networkLatencyMs = Date.now() - serverTime
-      audioRef.current.currentTime = Math.min(29.5, currentTime + networkLatencyMs / 1000)
-      audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      const seekTo = Math.min(29.5, currentTime + networkLatencyMs / 1000)
+      audioRef.current.currentTime = seekTo
+      audioRef.current.play()
+        .then(() => { setPlaying(true); setPendingPlay(null) })
+        .catch(() => setPendingPlay({ currentTime: seekTo, at: Date.now() }))
     }
-    const onRemotePause = () => { audioRef.current?.pause(); setPlaying(false) }
+    const onRemotePause = () => {
+      audioRef.current?.pause()
+      setPlaying(false)
+      setPendingPlay(null)
+    }
     socket.on('audio:play', onRemotePlay)
     socket.on('audio:pause', onRemotePause)
     return () => {
@@ -90,6 +85,21 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
       socket.off('audio:pause', onRemotePause)
     }
   }, [song.previewUrl])
+
+  // If autoplay was blocked, retry on the next user interaction with elapsed-time correction.
+  useEffect(() => {
+    if (!pendingPlay) return
+    const retry = () => {
+      const el = audioRef.current
+      if (!el) return
+      const elapsed = (Date.now() - pendingPlay.at) / 1000
+      el.currentTime = Math.min(29.5, pendingPlay.currentTime + elapsed)
+      el.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      setPendingPlay(null)
+    }
+    document.addEventListener('pointerdown', retry, { once: true })
+    return () => document.removeEventListener('pointerdown', retry)
+  }, [pendingPlay])
 
   const toggle = () => {
     if (!audioRef.current) return
