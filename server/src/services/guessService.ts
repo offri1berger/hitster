@@ -27,8 +27,7 @@ export const handleGuessService = async (
 ): Promise<{ correct: boolean; tokens: number; playerId: string } | { error: string }> => {
   const gameState = await getGameState(roomCode)
   if (!gameState) return { error: 'game_not_found' }
-  if (gameState.currentPlayerId === null) return { error: 'no_current_player' }
-  if (!gameState.currentSongId) return { error: 'no_current_song' }
+if (!gameState.currentSongId) return { error: 'no_current_song' }
 
   const player = await getPlayerBySocketId(socketId)
   if (!player) return { error: 'player_not_found' }

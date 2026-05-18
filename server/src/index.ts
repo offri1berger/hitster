@@ -70,6 +70,10 @@ const PORT = process.env.PORT ?? 8080
 const server = httpServer.listen(PORT, () => logger.info({ port: PORT }, 'server running'))
 
 const shutdown = () => {
+  setTimeout(() => {
+    logger.error('shutdown timed out — forcing exit')
+    process.exit(1)
+  }, 10_000).unref()
   server.close(async () => {
     await io.close()
     await closeRoomQueue()

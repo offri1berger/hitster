@@ -4,8 +4,6 @@ import { safeJsonParse } from './safeJson.js'
 import { config } from './config.js'
 import type { Song, TimelineEntry, DecadeFilter } from '@backspin-maestro/shared'
 
-const SESSION_TTL = 86_400 // 24 hours
-
 const roomKey = (code: string) => `room:${code}`
 const roomPlayersKey = (code: string) => `room:${code}:players`
 const playerKey = (id: string) => `player:${id}`
@@ -35,7 +33,7 @@ export interface SessionPlayer {
 
 export const createSessionRoom = async (code: string, data: Omit<SessionRoom, 'code'>): Promise<SessionRoom> => {
   const room: SessionRoom = { code, ...data }
-  await redis.set(roomKey(code), JSON.stringify(room), 'EX', SESSION_TTL)
+  await redis.set(roomKey(code), JSON.stringify(room), 'EX', config.sessionTtlSeconds)
   return room
 }
 
@@ -50,7 +48,7 @@ export const getSessionRoom = async (code: string): Promise<SessionRoom | null> 
 export const updateRoomStatus = async (code: string, status: SessionRoom['status']) => {
   const room = await getSessionRoom(code)
   if (!room) return
-  await redis.set(roomKey(code), JSON.stringify({ ...room, status }), 'EX', SESSION_TTL)
+  await redis.set(roomKey(code), JSON.stringify({ ...room, status }), 'EX', config.sessionTtlSeconds)
 }
 
 export const updateRoomSettings = async (
@@ -59,7 +57,7 @@ export const updateRoomSettings = async (
 ) => {
   const room = await getSessionRoom(code)
   if (!room) return
-  await redis.set(roomKey(code), JSON.stringify({ ...room, ...settings }), 'EX', SESSION_TTL)
+  await redis.set(roomKey(code), JSON.stringify({ ...room, ...settings }), 'EX', config.sessionTtlSeconds)
 }
 
 // ── Player ───────────────────────────────────────────────────────────────────
@@ -68,11 +66,11 @@ export const createSessionPlayer = async (
   data: Omit<SessionPlayer, 'id'> & { id?: string }
 ): Promise<SessionPlayer> => {
   const player: SessionPlayer = { ...data, id: data.id ?? randomUUID() }
-  await redis.set(playerKey(player.id), JSON.stringify(player), 'EX', SESSION_TTL)
+  await redis.set(playerKey(player.id), JSON.stringify(player), 'EX', config.sessionTtlSeconds)
   await redis.sadd(roomPlayersKey(player.roomCode), player.id)
-  await redis.expire(roomPlayersKey(player.roomCode), SESSION_TTL)
+  await redis.expire(roomPlayersKey(player.roomCode), config.sessionTtlSeconds)
   if (player.socketId) {
-    await redis.set(socketPlayerKey(player.socketId), player.id, 'EX', SESSION_TTL)
+    await redis.set(socketPlayerKey(player.socketId), player.id, 'EX', config.sessionTtlSeconds)
   }
   return player
 }
@@ -98,7 +96,7 @@ export const getPlayersByRoomCode = async (roomCode: string): Promise<SessionPla
 }
 
 const savePlayer = async (player: SessionPlayer) => {
-  await redis.set(playerKey(player.id), JSON.stringify(player), 'EX', SESSION_TTL)
+  await redis.set(playerKey(player.id), JSON.stringify(player), 'EX', config.sessionTtlSeconds)
 }
 
 export const updatePlayerTokens = async (id: string, tokens: number) => {
@@ -118,7 +116,7 @@ export const updatePlayerSocketId = async (id: string, newSocketId: string) => {
   if (!player) return
   if (player.socketId) await redis.del(socketPlayerKey(player.socketId))
   await savePlayer({ ...player, socketId: newSocketId })
-  await redis.set(socketPlayerKey(newSocketId), id, 'EX', SESSION_TTL)
+  await redis.set(socketPlayerKey(newSocketId), id, 'EX', config.sessionTtlSeconds)
 }
 
 // ── Timeline ─────────────────────────────────────────────────────────────────
@@ -126,7 +124,7 @@ export const updatePlayerSocketId = async (id: string, newSocketId: string) => {
 export const addToTimeline = async (playerId: string, song: Song) => {
   // score = year so ZRANGE returns entries in chronological order automatically
   await redis.zadd(timelineKey(playerId), song.year, JSON.stringify(song))
-  await redis.expire(timelineKey(playerId), SESSION_TTL)
+  await redis.expire(timelineKey(playerId), config.sessionTtlSeconds)
 }
 
 export const getTimeline = async (playerId: string): Promise<TimelineEntry[]> => {
@@ -146,7 +144,7 @@ export const resetSessionPlayer = async (playerId: string) => {
   const player = await getSessionPlayer(playerId)
   if (!player) return
   await redis.del(timelineKey(playerId))
-  await redis.set(playerKey(playerId), JSON.stringify({ ...player, tokens: config.starterTokens, turnOrder: 0 }), 'EX', SESSION_TTL)
+  await redis.set(playerKey(playerId), JSON.stringify({ ...player, tokens: config.starterTokens, turnOrder: 0 }), 'EX', config.sessionTtlSeconds)
 }
 
 export const removeSessionPlayer = async (playerId: string) => {
@@ -161,12 +159,12 @@ export const removeSessionPlayer = async (playerId: string) => {
 export const transferHost = async (roomCode: string, oldHostId: string, newHostId: string) => {
   const room = await getSessionRoom(roomCode)
   if (room) {
-    await redis.set(roomKey(roomCode), JSON.stringify({ ...room, hostId: newHostId }), 'EX', SESSION_TTL)
+    await redis.set(roomKey(roomCode), JSON.stringify({ ...room, hostId: newHostId }), 'EX', config.sessionTtlSeconds)
   }
   const oldHost = await getSessionPlayer(oldHostId)
-  if (oldHost) await redis.set(playerKey(oldHostId), JSON.stringify({ ...oldHost, isHost: false }), 'EX', SESSION_TTL)
+  if (oldHost) await redis.set(playerKey(oldHostId), JSON.stringify({ ...oldHost, isHost: false }), 'EX', config.sessionTtlSeconds)
   const newHost = await getSessionPlayer(newHostId)
-  if (newHost) await redis.set(playerKey(newHostId), JSON.stringify({ ...newHost, isHost: true }), 'EX', SESSION_TTL)
+  if (newHost) await redis.set(playerKey(newHostId), JSON.stringify({ ...newHost, isHost: true }), 'EX', config.sessionTtlSeconds)
 }
 
 export const deleteSessionRoom = async (roomCode: string) => {

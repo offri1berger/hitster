@@ -3,6 +3,7 @@ import { addUsedSong, getUsedSongIds } from '../lib/gameCache.js'
 import { getSessionRoom } from '../lib/session.js'
 import { deezerFetches } from '../lib/metrics.js'
 import { logger } from '../lib/logger.js'
+import { config } from '../lib/config.js'
 import type { DecadeFilter } from '@backspin-maestro/shared'
 
 /**
@@ -52,7 +53,7 @@ export const markSongAsUsed = async (roomCode: string, songId: string) => {
 export const getFreshPreviewUrl = async (deezerId: string): Promise<string | null> => {
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 4_000)
+    const timeout = setTimeout(() => controller.abort(), config.deezerTimeoutMs)
     const res = await fetch(`https://api.deezer.com/track/${deezerId}`, { signal: controller.signal })
     clearTimeout(timeout)
     if (!res.ok) {

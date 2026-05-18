@@ -1,5 +1,6 @@
 import { redis } from './redis.js'
 import { safeJsonParse } from './safeJson.js'
+import { config } from './config.js'
 import type { GamePhase } from '@backspin-maestro/shared'
 
 export interface CachedGameState {
@@ -10,13 +11,11 @@ export interface CachedGameState {
   phaseStartedAt: string
 }
 
-const GAME_TTL_SECONDS = 7_200 // 2 hours — fallback expiry if cleanup never fires
-
 const gameKey = (roomCode: string) => `game:${roomCode}`
 const usedSongsKey = (roomCode: string) => `used_songs:${roomCode}`
 
 export const setGameState = async (roomCode: string, state: CachedGameState) =>
-  redis.set(gameKey(roomCode), JSON.stringify(state), 'EX', GAME_TTL_SECONDS)
+  redis.set(gameKey(roomCode), JSON.stringify(state), 'EX', config.gameTtlSeconds)
 
 export const getGameState = async (roomCode: string): Promise<CachedGameState | null> => {
   const data = await redis.get(gameKey(roomCode))
@@ -32,7 +31,7 @@ export const deleteGameState = async (roomCode: string) =>
 export const addUsedSong = async (roomCode: string, songId: string) => {
   const key = usedSongsKey(roomCode)
   await redis.sadd(key, songId)
-  await redis.expire(key, GAME_TTL_SECONDS)
+  await redis.expire(key, config.gameTtlSeconds)
 }
 
 export const getUsedSongIds = async (roomCode: string): Promise<string[]> =>
