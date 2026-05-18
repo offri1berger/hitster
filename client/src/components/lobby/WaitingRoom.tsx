@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import type { Player, DecadeFilter, RoomSettings, UpdateRoomSettingsResult } from '@backspin-maestro/shared'
 import { MIN_SONGS_PER_PLAYER, MAX_SONGS_PER_PLAYER } from '@backspin-maestro/shared'
 import { useGameStore } from '../../store/gameStore'
 import { Logo } from '../ui/Logo'
 import MuteToggle from '../ui/MuteToggle'
+import HowToPlayModal from '../ui/HowToPlayModal'
 import { DecadePicker } from './DecadePicker'
 import socket from '../../socket'
 import Sticker from '../boombox/Sticker'
@@ -186,6 +188,7 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
 
   const seenIdsRef = useRef<Set<string>>(new Set(players.map((p) => p.id)))
   const [recentlyJoined, setRecentlyJoined] = useState<Set<string>>(new Set())
+  const [showRules, setShowRules] = useState(false)
 
   useEffect(() => {
     const newcomers = players.filter((p) => !seenIdsRef.current.has(p.id))
@@ -222,6 +225,8 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
   }
 
   const emptySlots = Math.max(0, 6 - players.length)
+  const [showQR, setShowQR] = useState(false)
+  const joinUrl = `${window.location.origin}?join=${roomCode}`
 
   return (
     <div className="min-h-dvh boombox-bg-soft text-on-bg flex flex-col">
@@ -246,6 +251,12 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
             <span className="font-display text-[10px] tracking-[0.1em] text-bad">REC</span>
           </div>
           <div className="hidden sm:block w-px h-4 bg-[#0a0a0a]" />
+          <button
+            onClick={() => setShowRules(true)}
+            className="plastic-btn plastic-btn-dark h-8 px-3 text-[10px]"
+          >
+            ? RULES
+          </button>
           <MuteToggle />
         </div>
       </div>
@@ -254,19 +265,31 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
         {/* Room code + Settings — stacks on mobile */}
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
           {/* Room code card */}
-          <div className="relative panel-hardware brushed-dark p-4 lg:p-5 flex flex-col sm:flex-row items-center gap-4">
+          <div className="relative panel-hardware brushed-dark p-4 lg:p-5 flex flex-col gap-4">
             <Sticker color="cyan" rotate={-4} size="sm" className="absolute -top-2 left-4">ROOM CODE</Sticker>
-            <LedDisplay color="cyan" className="text-center w-full sm:w-auto text-[36px] tracking-[.3em] py-[14px] px-[22px]">
-              {roomCode}
-            </LedDisplay>
-            <PlasticButton
-              onClick={handleCopyCode}
-              color="dark"
-              className="h-11 px-4 text-[11px] flex items-center gap-2 ml-auto"
-              aria-label={copied ? 'Room code copied' : 'Copy room code'}
-            >
-              <span>⎘ {copied ? 'COPIED!' : 'COPY'}</span>
-            </PlasticButton>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <LedDisplay color="cyan" className="text-center w-full sm:w-auto text-[52px] tracking-[.3em] py-[14px] px-[22px]">
+                {roomCode}
+              </LedDisplay>
+              <div className="flex items-center gap-2 ml-auto">
+                <PlasticButton
+                  onClick={handleCopyCode}
+                  color="dark"
+                  className="h-11 px-4 text-[11px] flex items-center gap-2"
+                  aria-label={copied ? 'Room code copied' : 'Copy room code'}
+                >
+                  <span>⎘ {copied ? 'COPIED!' : 'COPY'}</span>
+                </PlasticButton>
+                <PlasticButton
+                  onClick={() => setShowQR(true)}
+                  color="dark"
+                  className="h-11 px-4 text-[11px] flex items-center gap-2"
+                  aria-label="Show QR code"
+                >
+                  <span>▦ QR</span>
+                </PlasticButton>
+              </div>
+            </div>
           </div>
 
           {settings ? (
@@ -355,6 +378,38 @@ export function WaitingRoom({ roomCode, players, onStart, onLeave }: Props) {
           </p>
         )}
       </div>
+
+      {showRules && <HowToPlayModal onClose={() => setShowRules(false)} />}
+
+      {showQR && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowQR(false)}
+        >
+          <div
+            className="relative panel-hardware brushed-dark flex flex-col items-center gap-5 p-8 rounded-2xl [box-shadow:0_24px_60px_rgba(0,0,0,.8)] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Sticker color="cyan" rotate={-3} size="sm" className="absolute -top-3 left-5">SCAN TO JOIN</Sticker>
+            <button
+              onClick={() => setShowQR(false)}
+              aria-label="Close QR code"
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full cursor-pointer flex items-center justify-center bg-[#0a0a0a] text-bad border-2 border-bad [box-shadow:0_2px_0_#000] text-sm font-bold leading-none"
+            >
+              ✕
+            </button>
+            <div className="p-4 bg-white rounded-xl [box-shadow:0_8px_24px_rgba(0,0,0,.6)]">
+              <QRCodeSVG value={joinUrl} size={220} />
+            </div>
+            <LedDisplay color="cyan" className="text-[28px] tracking-[.3em] py-3 px-6">
+              {roomCode}
+            </LedDisplay>
+            <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--color-muted)] text-center max-w-[260px] break-all">
+              {joinUrl}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

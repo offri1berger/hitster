@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { GamePageProps } from './useGamePage'
 import { PlayerRail } from '../../components/game/PlayerRail'
 import { GuessRail } from '../../components/game/GuessRail'
@@ -5,8 +6,11 @@ import { GameStage } from '../../components/game/GameStage'
 import { Logo } from '../../components/ui/Logo'
 import StealPill from './StealPill'
 import LedDisplay from '../../components/boombox/LedDisplay'
+import HowToPlayModal from '../../components/ui/HowToPlayModal'
 
-const GamePageDesktop = (p: GamePageProps) => (
+const GamePageDesktop = (p: GamePageProps) => {
+  const [showRules, setShowRules] = useState(false)
+  return (
   <div className="hidden lg:flex flex-col flex-1 min-h-0 boombox-bg">
     {/* Top bar */}
     <div className="px-6 py-3 flex items-center justify-between shrink-0 bg-[linear-gradient(180deg,#1a1a1c,#0a0a0a)] border-b-2 border-[#000] [box-shadow:0_2px_8px_rgba(0,0,0,.5)]">
@@ -24,6 +28,12 @@ const GamePageDesktop = (p: GamePageProps) => (
         <span className="font-display text-[10px] tracking-[0.1em] text-cream">
           FIRST TO {p.songsToWin}
         </span>
+        <button
+          onClick={() => setShowRules(true)}
+          className="plastic-btn plastic-btn-dark h-9 px-3.5 text-[10px]"
+        >
+          ? RULES
+        </button>
         <button
           onClick={p.handleLeave}
           className="plastic-btn plastic-btn-dark h-9 px-3.5 text-[10px]"
@@ -54,7 +64,10 @@ const GamePageDesktop = (p: GamePageProps) => (
         ★ STEAL · 1 ★
       </button>
     )}
+
+    {showRules && <HowToPlayModal onClose={() => setShowRules(false)} />}
   </div>
-)
+  )
+}
 
 export default GamePageDesktop

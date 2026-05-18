@@ -155,9 +155,9 @@ export const registerGameHandlers = (io: IoServer, socket: IoSocket) => {
     }
   })
 
-  socket.on('audio:play', () => {
+  socket.on('audio:play', (payload) => {
     const roomCode = getSocketRoomCode(socket)
-    if (roomCode) socket.to(roomCode).emit('audio:play')
+    if (roomCode) socket.to(roomCode).emit('audio:play', { currentTime: payload?.currentTime ?? 0, serverTime: Date.now() })
   })
 
   socket.on('audio:pause', () => {

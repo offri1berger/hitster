@@ -22,6 +22,7 @@ const httpServer = createServer(app)
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: { origin: process.env.CLIENT_URL ?? 'http://localhost:5173' },
   adapter: createAdapter(pubClient, subClient),
+  transports: ['websocket'],
 })
 
 app.use(helmet())

@@ -5,12 +5,14 @@ import { Logo } from '../../components/ui/Logo'
 import MobilePlayerBar from './MobilePlayerBar'
 import MobileBottomSheet from './MobileBottomSheet'
 import LedDisplay from '../../components/boombox/LedDisplay'
+import HowToPlayModal from '../../components/ui/HowToPlayModal'
 import { useGameStore } from '../../store/gameStore'
 
 const GamePageMobile = (p: GamePageProps) => {
   const [pendingState, setPendingState] = useState<{ forSongId: string | undefined; slot: number | null }>({ forSongId: undefined, slot: null })
   const [confirmedSongId, setConfirmedSongId] = useState<string | undefined>(undefined)
   const [sheetHeight, setSheetHeight] = useState(320)
+  const [showRules, setShowRules] = useState(false)
   const isWaitingForNextTurn = useGameStore((s) => s.isWaitingForNextTurn)
   const currentSongId = useGameStore((s) => s.currentSong?.id)
 
@@ -35,6 +37,17 @@ const GamePageMobile = (p: GamePageProps) => {
           <LedDisplay color="green" className="text-xs px-2 py-[3px]">
             {p.roomCode}
           </LedDisplay>
+          <button
+            onClick={() => setShowRules(true)}
+            aria-label="How to play"
+            className="w-9 h-9 flex items-center justify-center bg-transparent border-0 cursor-pointer text-cream"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M9 13v-.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M9 10c0-1.5 2-2 2-3.5a2 2 0 00-4 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
           <button
             onClick={p.handleLeave}
             aria-label="Leave room"
@@ -100,6 +113,8 @@ const GamePageMobile = (p: GamePageProps) => {
         }}
         onHeightChange={setSheetHeight}
       />
+
+      {showRules && <HowToPlayModal onClose={() => setShowRules(false)} />}
     </div>
   )
 }

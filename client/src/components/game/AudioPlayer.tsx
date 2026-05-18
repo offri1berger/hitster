@@ -63,8 +63,10 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
   }, [song.id])
 
   useEffect(() => {
-    const onRemotePlay = () => {
+    const onRemotePlay = ({ currentTime, serverTime }: { currentTime: number; serverTime: number }) => {
       if (!audioRef.current || !song.previewUrl) return
+      const networkLatencyMs = Date.now() - serverTime
+      audioRef.current.currentTime = Math.min(29.5, currentTime + networkLatencyMs / 1000)
       audioRef.current.play().catch(() => setPlaying(false))
       setPlaying(true)
     }
@@ -87,7 +89,7 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
       if (!song.previewUrl) return
       audioRef.current.play().catch(() => setPlaying(false))
       setPlaying(true)
-      socket.emit('audio:play')
+      socket.emit('audio:play', { currentTime: audioRef.current.currentTime })
     }
   }
 

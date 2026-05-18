@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { DecadeFilter } from '@backspin-maestro/shared'
 import socket from '../socket'
 import { useGameStore } from '../store/gameStore'
 import { HeroPanel } from '../components/lobby/HeroPanel'
 import { SetupForm } from '../components/lobby/SetupForm'
 import { Logo } from '../components/ui/Logo'
+import HowToPlayModal from '../components/ui/HowToPlayModal'
 
 const ERROR_MESSAGES: Record<string, string> = {
   room_not_found: 'Room not found — check the code.',
@@ -18,14 +19,16 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const LobbyPage = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [name, setName] = useState('')
-  const [roomCode, setRoomCode] = useState('')
-  const [tab, setTab] = useState<'create' | 'join'>('create')
+  const [roomCode, setRoomCode] = useState(() => searchParams.get('join')?.toUpperCase() ?? '')
+  const [tab, setTab] = useState<'create' | 'join'>(() => searchParams.get('join') ? 'join' : 'create')
   const [decadeFilter, setDecadeFilter] = useState<DecadeFilter>('all')
   const [songsPerPlayer, setSongsPerPlayer] = useState(10)
   const [avatar, setAvatar] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [showRules, setShowRules] = useState(false)
 
   const { setRoom, setPlayers, setSettings, roomCode: storeRoomCode, phase, leaveRoom } = useGameStore()
 
@@ -88,12 +91,25 @@ const LobbyPage = () => {
 
   return (
     <div className="min-h-dvh boombox-bg-soft text-on-bg lg:h-dvh lg:overflow-hidden lg:grid lg:grid-rows-[auto_1fr] lg:grid-cols-[1.1fr_minmax(380px,_440px)]">
+      {/* Top nav — mobile only */}
+      <div className="lg:hidden px-4 py-3 flex items-center justify-between border-b-2 border-line bg-surface">
+        <Logo />
+        <button onClick={() => setShowRules(true)} className="plastic-btn plastic-btn-dark h-8 px-3 text-[10px]">
+          ? RULES
+        </button>
+      </div>
+
       {/* Top nav — desktop only */}
       <div className="hidden lg:flex col-span-2 px-12 py-5 items-center justify-between border-b-2 border-line bg-surface">
         <Logo />
-        <span className="font-display text-[11px] tracking-[0.2em] text-cyan">
-          ◆ SIDE A · INSERT TAPE
-        </span>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setShowRules(true)} className="plastic-btn plastic-btn-dark h-8 px-3 text-[10px]">
+            ? RULES
+          </button>
+          <span className="font-display text-[11px] tracking-[0.2em] text-cyan">
+            ◆ SIDE A · INSERT TAPE
+          </span>
+        </div>
       </div>
 
       {/* Two-column content */}
@@ -111,6 +127,8 @@ const LobbyPage = () => {
         error={error}
         submitting={submitting}
       />
+
+      {showRules && <HowToPlayModal onClose={() => setShowRules(false)} />}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import type { ServerToClientEvents, ClientToServerEvents } from '@backspin-maest
 
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
   import.meta.env.VITE_SERVER_URL ?? '',
-  { autoConnect: false },
+  { autoConnect: false, transports: ['websocket'] },
 )
 
 export default socket

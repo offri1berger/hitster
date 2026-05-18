@@ -123,7 +123,7 @@ export interface ServerToClientEvents {
   'steal:result': (result: StealResultPayload) => void
   'game:over': (winnerId: string, players: Player[]) => void
   'error': (message: string) => void
-  'audio:play': () => void
+  'audio:play': (payload: { currentTime: number; serverTime: number }) => void
   'audio:pause': () => void
   'drag:update': (slot: number | null) => void
   'tokens:updated': (playerId: string, newTotal: number) => void
@@ -149,7 +149,7 @@ export interface ClientToServerEvents {
   'card:place': (payload: PlacePayload, cb: (result: CardPlaceResult) => void) => void
   'steal:attempt': (payload: StealPayload, cb: (result: StealAttemptResult) => void) => void
   'steal:initiated': () => void
-  'audio:play': () => void
+  'audio:play': (payload: { currentTime: number }) => void
   'audio:pause': () => void
   'drag:move': (payload: DragMovePayload) => void
   'conductor:kick': (payload: KickPayload, cb: (result: ConductorKickResult) => void) => void

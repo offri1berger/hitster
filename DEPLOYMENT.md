@@ -307,6 +307,71 @@ Make sure Docker postgres is running (`docker ps` shows `*-postgres-*`). Check `
 
 ---
 
+## Monitoring (Grafana)
+
+Metrics are exposed at `/metrics` (Prometheus format, Bearer-token gated). A Grafana Alloy agent running as a separate Fly app scrapes it every 15 s and remote-writes to Grafana Cloud.
+
+### First-time setup
+
+**Step 1 — Grafana Cloud account**
+
+1. Go to [grafana.com](https://grafana.com) → "Create free account".
+2. Create a stack (pick the EU region to stay close to `fra`).
+3. In your stack, open **Connections → Add new connection → Prometheus → Start sending metrics**.
+4. Note three values shown on that page:
+   - **Remote Write URL** — looks like `https://prometheus-prod-XX-prod-eu-west-X.grafana.net/api/prom/push`
+   - **Username** — a numeric user ID (e.g. `1234567`)
+   - **Password** — click "Generate now" → create a key with the **MetricsPublisher** role, copy the value
+
+**Step 2 — Create the Fly monitoring app**
+
+```sh
+fly apps create backspin-maestro-monitoring
+```
+
+**Step 3 — Set secrets on the monitoring app**
+
+```sh
+fly secrets set \
+  METRICS_TOKEN='<same value as on the server>' \
+  GRAFANA_PROM_URL='<Remote Write URL from step 1>' \
+  GRAFANA_PROM_USER='<Username from step 1>' \
+  GRAFANA_PROM_KEY='<Password/API key from step 1>' \
+  --app backspin-maestro-monitoring
+```
+
+**Step 4 — Deploy the agent**
+
+```sh
+cd monitoring && fly deploy
+```
+
+Takes ~1 minute. After deploy, metrics start flowing to Grafana Cloud within 30 s.
+
+**Step 5 — Import the starter dashboard**
+
+1. In Grafana, go to **Dashboards → Import**.
+2. Upload `monitoring/dashboard.json`.
+3. Select your Prometheus datasource when prompted.
+4. Click **Import**.
+
+The dashboard has 8 panels covering: active rooms, connected sockets, queue depth, disconnect grace timers, job completion/failure rates, job duration p50/p95, and Deezer API health.
+
+### Redeploying the agent
+
+```sh
+cd monitoring && fly deploy
+```
+
+### Viewing the Alloy pipeline UI
+
+```sh
+fly ssh console --app backspin-maestro-monitoring
+# Alloy's web UI is at port 12345 — use `fly proxy 12345 --app backspin-maestro-monitoring` locally
+```
+
+---
+
 ## Costs
 
 | Service    | Plan                                  | Approx. cost              |
