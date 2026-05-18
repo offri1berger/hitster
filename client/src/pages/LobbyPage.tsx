@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { DecadeFilter } from '@backspin-maestro/shared'
 import socket from '../socket'
 import { useGameStore } from '../store/gameStore'
+import { identify, capture, avatarFilename } from '../lib/analytics'
 import  HeroPanel  from '../components/lobby/HeroPanel'
 import  SetupForm  from '../components/lobby/SetupForm'
 import { Logo } from '../components/ui/Logo'
@@ -60,6 +61,12 @@ const LobbyPage = () => {
         setError(ERROR_MESSAGES[result.error] ?? 'Could not create room.')
         return
       }
+      identify(result.playerId)
+      capture('room_created', {
+        avatar: avatarFilename(avatar),
+        decade_filter: decadeFilter,
+        songs_per_player: songsPerPlayer,
+      })
       setRoom(result.roomCode, result.playerId)
       setPlayers([{ id: result.playerId, name, avatar, tokens: 2, isHost: true, turnOrder: 0, timeline: result.timeline }])
       setSettings({ songsPerPlayer, decadeFilter })
@@ -79,6 +86,8 @@ const LobbyPage = () => {
         setError(ERROR_MESSAGES[result.error] ?? 'Could not join room.')
         return
       }
+      identify(result.playerId)
+      capture('room_joined', { avatar: avatarFilename(avatar) })
       setRoom(result.roomCode, result.playerId)
       setPlayers([
         ...result.players,

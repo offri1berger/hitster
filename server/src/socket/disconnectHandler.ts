@@ -9,6 +9,7 @@ import { nextTurnService } from '../services/gameService.js'
 import { cancelRoomTimers } from '../lib/jobs.js'
 import { logger } from '../lib/logger.js'
 import { config } from '../lib/config.js'
+import { posthog } from '../lib/posthog.js'
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents>
 type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents>
@@ -50,6 +51,14 @@ export const finalizeDisconnect = async (io: IoServer, playerId: string, roomCod
     io.to(roomCode).emit('host:transferred', newHost.id)
   }
 
+  posthog.capture({
+    distinctId: playerId,
+    event: 'player_left_permanent',
+    properties: {
+      room_code: roomCode,
+      room_status: room.status,
+    },
+  })
   await removeSessionPlayer(playerId)
   io.to(roomCode).emit('player:left', playerId)
 }

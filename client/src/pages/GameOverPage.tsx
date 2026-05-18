@@ -33,7 +33,7 @@ const GameOverPage = () => {
   }
 
   return (
-    <div className="min-h-dvh boombox-bg-soft text-on-bg relative">
+    <div className="min-h-dvh boombox-bg-soft text-on-bg relative overflow-x-hidden">
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {CONFETTI.map((s, i) => (
           <div
@@ -135,25 +135,27 @@ const GameOverPage = () => {
                 return (
                   <div
                     key={p.id}
-                    className={`flex items-center gap-3 pb-3 ${i < ranked.length - 1 ? 'border-b-2 border-dashed border-white/[.08]' : ''}`}
+                    className={`flex items-center gap-2 pb-3 ${i < ranked.length - 1 ? 'border-b-2 border-dashed border-white/[.08]' : ''}`}
                   >
                     <div
-                      className={`font-display flex items-center justify-center w-[38px] h-[38px] rounded-[6px] text-base ${i === 0 ? 'bg-[linear-gradient(135deg,var(--color-accent),var(--color-orange))] text-accent-ink [box-shadow:0_3px_0_color-mix(in_srgb,var(--color-accent)_55%,#000)]' : 'bg-[#2a2a2c] text-[var(--color-muted)] [box-shadow:0_2px_0_#000]'}`}
+                      className={`font-display shrink-0 flex items-center justify-center w-[30px] h-[30px] rounded-[6px] text-sm ${i === 0 ? 'bg-[linear-gradient(135deg,var(--color-accent),var(--color-orange))] text-accent-ink [box-shadow:0_3px_0_color-mix(in_srgb,var(--color-accent)_55%,#000)]' : 'bg-[#2a2a2c] text-[var(--color-muted)] [box-shadow:0_2px_0_#000]'}`}
                     >
                       {i + 1}
                     </div>
-                    <PolaroidAvatar
-                      src={p.avatar}
-                      fallback={p.name.charAt(0)}
-                      size={40}
-                      rotate={i % 2 ? -3 : 3}
-                      active={i === 0}
-                    />
+                    <div className="shrink-0">
+                      <PolaroidAvatar
+                        src={p.avatar}
+                        fallback={p.name.charAt(0)}
+                        size={32}
+                        rotate={i % 2 ? -3 : 3}
+                        active={i === 0}
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-display text-sm text-cream">
+                      <div className="font-display text-sm text-cream truncate">
                         {p.name}
                       </div>
-                      <div className="font-mono mt-0.5 text-[13px] text-[var(--color-muted)] tracking-[.05em]">
+                      <div className="font-mono mt-0.5 text-[11px] text-[var(--color-muted)] tracking-[.04em]">
                         {p.timeline.length} CARDS · {p.tokens} ★
                       </div>
                       {/* mini progress */}
@@ -166,7 +168,7 @@ const GameOverPage = () => {
                     </div>
                     <LedDisplay
                       color={i === 0 ? 'yellow' : 'muted'}
-                      className="text-xl py-1 px-[10px] min-w-[56px] text-center"
+                      className="text-base py-1 px-[8px] min-w-[46px] text-center shrink-0"
                     >
                       {String(p.timeline.length).padStart(2, '0')}
                     </LedDisplay>
@@ -176,7 +178,7 @@ const GameOverPage = () => {
             </div>
 
             {ranked[0] && ranked[0].timeline.length > 0 && (
-              <div className="mt-4">
+              <div className="mt-4 min-w-0">
                 <Sticker color="yellow" rotate={-3} size="sm">WINNER'S SHELF</Sticker>
                 <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar pb-1">
                   {ranked[0].timeline.map((entry, j) => (

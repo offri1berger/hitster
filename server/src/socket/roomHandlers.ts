@@ -20,6 +20,7 @@ import { config } from '../lib/config.js'
 import { makeWrapper } from '../lib/handlerWrapper.js'
 import { gamesStarted, playersJoined, reconnects, avatarChosen, decadeFilterChosen, songsPerPlayerChosen, playersPerGame } from '../lib/metrics.js'
 import type { DecadeFilter } from '@backspin-maestro/shared'
+import { posthog } from '../lib/posthog.js'
 
 const avatarLabel = (avatar: string | undefined) =>
   avatar ? (avatar.split('/').pop()?.split('?')[0] ?? 'unknown').slice(0, 60) : 'none'
@@ -38,6 +39,10 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     avatarChosen.inc({ avatar: avatarLabel(data.avatar) })
     decadeFilterChosen.inc({ filter: decadeLabel(data.settings.decadeFilter) })
     songsPerPlayerChosen.inc({ count: String(data.settings.songsPerPlayer) })
+    posthog.identify({
+      distinctId: result.playerId,
+      properties: { $set: { name: data.hostName } },
+    })
     socket.join(result.roomCode)
     cb({ success: true, ...result })
   }) as Parameters<typeof socket.on<'room:create'>>[1])
@@ -48,6 +53,10 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
 
     playersJoined.inc()
     avatarChosen.inc({ avatar: avatarLabel(data.avatar) })
+    posthog.identify({
+      distinctId: result.playerId!,
+      properties: { $set: { name: data.playerName } },
+    })
     socket.join(data.roomCode)
     socket.to(data.roomCode).emit('player:joined', {
       id: result.playerId!,
@@ -118,6 +127,15 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     cancelDisconnectTimer(target.id)
     await removeSessionPlayer(target.id)
 
+    posthog.capture({
+      distinctId: auth.player.id,
+      event: 'player_kicked',
+      properties: {
+        room_code: auth.roomCode,
+        kicked_player_id: target.id,
+      },
+    })
+
     cb({ success: true })
   }) as Parameters<typeof socket.on<'conductor:kick'>>[1])
 
@@ -137,6 +155,18 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
 
     const result = await resetRoomService(roomCode, socket.id)
     if ('error' in result) { cb({ success: false, error: result.error }); return }
+
+    const host = result.players.find((p) => p.isHost)
+    if (host) {
+      posthog.capture({
+        distinctId: host.id,
+        event: 'game_reset',
+        properties: {
+          room_code: roomCode,
+          player_count: result.players.length,
+        },
+      })
+    }
 
     io.to(roomCode).emit('game:reset', result.players)
     cb({ success: true })

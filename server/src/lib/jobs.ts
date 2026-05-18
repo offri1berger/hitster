@@ -22,6 +22,7 @@ import { deleteUsedSongs } from './gameCache.js'
 import { logger } from './logger.js'
 import { jobDuration, jobsCompleted, jobsFailed, jobsStalled } from './metrics.js'
 import { config } from './config.js'
+import { posthog } from './posthog.js'
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379'
 const QUEUE_NAME = 'room-jobs'
@@ -117,7 +118,17 @@ const finishGame = async (io: IoServer, roomCode: string, winnerId: string) => {
   await updateRoomStatus(roomCode, 'finished')
   await deleteUsedSongs(roomCode)
   await cleanupRoomState(roomCode)
-  io.to(roomCode).emit('game:over', winnerId, await buildGameOverPlayers(roomCode))
+  const players = await buildGameOverPlayers(roomCode)
+  posthog.capture({
+    distinctId: winnerId,
+    event: 'game_completed',
+    properties: {
+      room_code: roomCode,
+      player_count: players.length,
+      winner_timeline_length: players.find((p) => p.id === winnerId)?.timeline.length ?? 0,
+    },
+  })
+  io.to(roomCode).emit('game:over', winnerId, players)
 }
 
 const processStealFire = async (io: IoServer, data: StealFireData): Promise<void> => {

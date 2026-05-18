@@ -15,6 +15,7 @@ import { redis, pubClient, subClient } from './lib/redis.js'
 import { startRoomWorker, closeRoomQueue, getRoomQueue } from './lib/jobs.js'
 import { logger } from './lib/logger.js'
 import { collectMetrics, setMetricsSources } from './lib/metrics.js'
+import { posthog } from './lib/posthog.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -80,6 +81,7 @@ const shutdown = () => {
     await closeRoomQueue()
     await db.destroy()
     await Promise.all([redis.quit(), pubClient.quit(), subClient.quit()])
+    await posthog.shutdown()
     process.exit(0)
   })
 }
@@ -89,8 +91,10 @@ process.on('SIGINT', shutdown)
 
 process.on('unhandledRejection', (reason) => {
   logger.error({ reason }, 'unhandledRejection')
+  posthog.captureException(reason)
 })
 process.on('uncaughtException', (err) => {
   logger.error({ err }, 'uncaughtException')
+  posthog.captureException(err)
   process.exit(1)
 })

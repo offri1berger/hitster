@@ -30,6 +30,7 @@ import { getSocketRoomCode } from '../lib/socketRoom.js'
 import { toSong } from '../services/mappers.js'
 import { makeWrapper } from '../lib/handlerWrapper.js'
 import { placements, stealAttempts, songSkips, noSongsLeft, guessAttempts } from '../lib/metrics.js'
+import { posthog } from '../lib/posthog.js'
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents>
 type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents>
@@ -128,6 +129,14 @@ export const registerGameHandlers = (io: IoServer, socket: IoSocket) => {
     if (!song) { noSongsLeft.inc(); cb({ success: false, error: 'no_songs_left' }); return }
 
     songSkips.inc()
+    posthog.capture({
+      distinctId: player.id,
+      event: 'song_skipped',
+      properties: {
+        room_code: roomCode,
+        tokens_remaining: player.tokens - 1,
+      },
+    })
     await updatePlayerTokens(player.id, player.tokens - 1)
     io.to(roomCode).emit('tokens:updated', player.id, player.tokens - 1)
 

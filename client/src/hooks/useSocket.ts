@@ -4,6 +4,7 @@ import type { ServerToClientEvents } from '@backspin-maestro/shared'
 import socket from '../socket'
 import { useGameStore, loadSession, clearSession } from '../store/gameStore'
 import { sfx, setMutedAccessor } from '../lib/sfx'
+import { capture } from '../lib/analytics'
 
 export const useSocket = () => {
   const navigate = useNavigate()
@@ -95,7 +96,13 @@ export const useSocket = () => {
       },
 
       'game:starting': (state, players) => {
-        useGameStore.getState().setGameStarted(players, state.phase, state.currentPlayerId)
+        const store = useGameStore.getState()
+        store.setGameStarted(players, state.phase, state.currentPlayerId)
+        capture('game_started', {
+          player_count: players.length,
+          decade_filter: store.settings?.decadeFilter,
+          songs_per_player: store.settings?.songsPerPlayer,
+        })
         navigate('/game')
       },
 
@@ -130,6 +137,7 @@ export const useSocket = () => {
       },
 
       'placement:result': (result) => {
+        capture('card_placed', { correct: result.correct })
         const store = useGameStore.getState()
 
         if (result.correct) {
@@ -175,6 +183,10 @@ export const useSocket = () => {
       },
 
       'steal:result': (result) => {
+        capture('steal_attempted', {
+          success: result.correct,
+          target_was_correct: result.targetWasCorrect,
+        })
         const store = useGameStore.getState()
 
         if (result.correct) {
@@ -202,6 +214,11 @@ export const useSocket = () => {
 
       'game:over': (winnerId, players) => {
         const store = useGameStore.getState()
+        capture('game_finished', {
+          won: winnerId === store.playerId,
+          player_count: players.length,
+          timeline_length: players.find((p) => p.id === store.playerId)?.timeline.length ?? 0,
+        })
         store.setPlayers(players)
         store.setGameOver(winnerId)
         sfx.win()
