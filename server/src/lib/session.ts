@@ -10,6 +10,66 @@ const playerKey = (id: string) => `player:${id}`
 const timelineKey = (playerId: string) => `timeline:${playerId}`
 const socketPlayerKey = (socketId: string) => `socket:${socketId}`
 
+
+/**
+ *  A simple distributed lock implementation using Redis SET with NX and expiration.
+ *  Not reentrant. Intended for short critical sections (under 5 seconds) to prevent race conditions when modifying session data. In case of lock contention, it retries once after a short delay before failing.
+ *  For operations that require multiple locks, acquire them in a consistent sorted order to prevent deadlocks.
+ * @param key A unique identifier for the lock, e.g. "room:ABC123" or "player:xyz789"   
+ * @param fn The critical section to execute once the lock is acquired. Should be a short operation that interacts with Redis to read/modify session data. The lock will automatically expire after 5 seconds to prevent deadlock in case of crashes, but should be released as soon as possible. 
+ * @returns The result of the critical section function, or throws an error if the lock could not be acquired after one retry.
+ * @throws Error if lock contention occurs and the lock cannot be acquired after one retry. 
+ */
+const withLock = async <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  const lockKey = `lock:${key}`
+  const token = randomUUID()
+  let acquired = await redis.set(lockKey, token, 'EX', 5, 'NX')
+  if (!acquired) {
+    await new Promise((r) => setTimeout(r, 50))
+    acquired = await redis.set(lockKey, token, 'EX', 5, 'NX')
+  }
+  if (!acquired) throw new Error(`Lock contention: ${key}`)
+  try {
+    return await fn()
+  } finally {
+    const current = await redis.get(lockKey)
+    if (current === token) await redis.del(lockKey)
+  }
+}
+
+/**
+ * A utility function to acquire locks on multiple keys in a consistent sorted order to prevent deadlocks, execute a critical section, and release the locks. Intended for operations that need to modify multiple related pieces of session data atomically, e.g. transferring host from one player to another requires locking both player records and the room record. The function will attempt to acquire locks on all specified keys, retrying once if there is contention, and will throw an error if it cannot acquire all locks after one retry.
+ * @param keys An array of unique identifiers for the locks to acquire, e.g. ["room:ABC123", "player:xyz789", "player:abc123"]. The function will sort and deduplicate the keys before attempting to acquire locks to ensure a consistent locking order and prevent deadlocks.
+ * @param fn The critical section to execute once all locks are acquired. Should be a short operation that interacts with Redis to read/modify session data. All specified locks will automatically expire after 5 seconds to prevent deadlock in case of crashes, but should be released as soon as possible.
+ * @returns The result of the critical section function, or throws an error if the locks could not be acquired after one retry.
+ * @throws Error if lock contention occurs and the locks cannot be acquired after one retry. The error message will indicate which key caused the contention. 
+ */
+const withLocks = async <T>(keys: string[], fn: () => Promise<T>): Promise<T> => {
+  const sorted = [...new Set(keys)].sort()
+  const acquired: Array<{ lockKey: string; token: string }> = []
+  try {
+    for (const key of sorted) {
+      const lockKey = `lock:${key}`
+      const token = randomUUID()
+      let result = await redis.set(lockKey, token, 'EX', 5, 'NX')
+      if (!result) {
+        await new Promise((r) => setTimeout(r, 50))
+        result = await redis.set(lockKey, token, 'EX', 5, 'NX')
+      }
+      if (!result) throw new Error(`Lock contention: ${key}`)
+      acquired.push({ lockKey, token })
+    }
+    return await fn()
+  } finally {
+    await Promise.allSettled(
+      acquired.map(async ({ lockKey, token }) => {
+        const current = await redis.get(lockKey)
+        if (current === token) await redis.del(lockKey)
+      }),
+    )
+  }
+}
+
 export interface SessionRoom {
   code: string
   status: 'lobby' | 'playing' | 'finished'
@@ -45,20 +105,22 @@ export const getSessionRoom = async (code: string): Promise<SessionRoom | null> 
   return parsed
 }
 
-export const updateRoomStatus = async (code: string, status: SessionRoom['status']) => {
-  const room = await getSessionRoom(code)
-  if (!room) return
-  await redis.set(roomKey(code), JSON.stringify({ ...room, status }), 'EX', config.sessionTtlSeconds)
-}
+export const updateRoomStatus = async (code: string, status: SessionRoom['status']) =>
+  withLock(roomKey(code), async () => {
+    const room = await getSessionRoom(code)
+    if (!room) return
+    await redis.set(roomKey(code), JSON.stringify({ ...room, status }), 'EX', config.sessionTtlSeconds)
+  })
 
 export const updateRoomSettings = async (
   code: string,
   settings: Pick<SessionRoom, 'songsPerPlayer' | 'decadeFilter'>,
-) => {
-  const room = await getSessionRoom(code)
-  if (!room) return
-  await redis.set(roomKey(code), JSON.stringify({ ...room, ...settings }), 'EX', config.sessionTtlSeconds)
-}
+) =>
+  withLock(roomKey(code), async () => {
+    const room = await getSessionRoom(code)
+    if (!room) return
+    await redis.set(roomKey(code), JSON.stringify({ ...room, ...settings }), 'EX', config.sessionTtlSeconds)
+  })
 
 // ── Player ───────────────────────────────────────────────────────────────────
 
@@ -99,25 +161,30 @@ const savePlayer = async (player: SessionPlayer) => {
   await redis.set(playerKey(player.id), JSON.stringify(player), 'EX', config.sessionTtlSeconds)
 }
 
-export const updatePlayerTokens = async (id: string, tokens: number) => {
-  const player = await getSessionPlayer(id)
-  if (!player) return
-  await savePlayer({ ...player, tokens: Math.max(0, tokens) })
-}
+export const updatePlayerTokens = async (id: string, tokens: number) =>
+  withLock(playerKey(id), async () => {
+    const player = await getSessionPlayer(id)
+    if (!player) return
+    await savePlayer({ ...player, tokens: Math.max(0, tokens) })
+  })
 
-export const updatePlayerTurnOrder = async (id: string, turnOrder: number) => {
-  const player = await getSessionPlayer(id)
-  if (!player) return
-  await savePlayer({ ...player, turnOrder })
-}
+export const updatePlayerTurnOrder = async (id: string, turnOrder: number) =>
+  withLock(playerKey(id), async () => {
+    const player = await getSessionPlayer(id)
+    if (!player) return
+    await savePlayer({ ...player, turnOrder })
+  })
 
-export const updatePlayerSocketId = async (id: string, newSocketId: string) => {
-  const player = await getSessionPlayer(id)
-  if (!player) return
-  if (player.socketId) await redis.del(socketPlayerKey(player.socketId))
-  await savePlayer({ ...player, socketId: newSocketId })
-  await redis.set(socketPlayerKey(newSocketId), id, 'EX', config.sessionTtlSeconds)
-}
+export const updatePlayerSocketId = async (id: string, newSocketId: string) =>
+  withLock(playerKey(id), async () => {
+    const player = await getSessionPlayer(id)
+    if (!player) return
+    const pipeline = redis.pipeline()
+    if (player.socketId) pipeline.del(socketPlayerKey(player.socketId))
+    pipeline.set(playerKey(id), JSON.stringify({ ...player, socketId: newSocketId }), 'EX', config.sessionTtlSeconds)
+    pipeline.set(socketPlayerKey(newSocketId), id, 'EX', config.sessionTtlSeconds)
+    await pipeline.exec()
+  })
 
 // ── Timeline ─────────────────────────────────────────────────────────────────
 
@@ -140,12 +207,15 @@ export const getTimelineCount = async (playerId: string): Promise<number> =>
 
 // ── Cleanup ──────────────────────────────────────────────────────────────────
 
-export const resetSessionPlayer = async (playerId: string) => {
-  const player = await getSessionPlayer(playerId)
-  if (!player) return
-  await redis.del(timelineKey(playerId))
-  await redis.set(playerKey(playerId), JSON.stringify({ ...player, tokens: config.starterTokens, turnOrder: 0 }), 'EX', config.sessionTtlSeconds)
-}
+export const resetSessionPlayer = async (playerId: string) =>
+  withLock(playerKey(playerId), async () => {
+    const player = await getSessionPlayer(playerId)
+    if (!player) return
+    const pipeline = redis.pipeline()
+    pipeline.del(timelineKey(playerId))
+    pipeline.set(playerKey(playerId), JSON.stringify({ ...player, tokens: config.starterTokens, turnOrder: 0 }), 'EX', config.sessionTtlSeconds)
+    await pipeline.exec()
+  })
 
 export const removeSessionPlayer = async (playerId: string) => {
   const player = await getSessionPlayer(playerId)
@@ -156,16 +226,19 @@ export const removeSessionPlayer = async (playerId: string) => {
   await redis.del(timelineKey(playerId))
 }
 
-export const transferHost = async (roomCode: string, oldHostId: string, newHostId: string) => {
-  const room = await getSessionRoom(roomCode)
-  if (room) {
-    await redis.set(roomKey(roomCode), JSON.stringify({ ...room, hostId: newHostId }), 'EX', config.sessionTtlSeconds)
-  }
-  const oldHost = await getSessionPlayer(oldHostId)
-  if (oldHost) await redis.set(playerKey(oldHostId), JSON.stringify({ ...oldHost, isHost: false }), 'EX', config.sessionTtlSeconds)
-  const newHost = await getSessionPlayer(newHostId)
-  if (newHost) await redis.set(playerKey(newHostId), JSON.stringify({ ...newHost, isHost: true }), 'EX', config.sessionTtlSeconds)
-}
+export const transferHost = async (roomCode: string, oldHostId: string, newHostId: string) =>
+  withLocks([roomKey(roomCode), playerKey(oldHostId), playerKey(newHostId)], async () => {
+    const [room, oldHost, newHost] = await Promise.all([
+      getSessionRoom(roomCode),
+      getSessionPlayer(oldHostId),
+      getSessionPlayer(newHostId),
+    ])
+    const pipeline = redis.pipeline()
+    if (room) pipeline.set(roomKey(roomCode), JSON.stringify({ ...room, hostId: newHostId }), 'EX', config.sessionTtlSeconds)
+    if (oldHost) pipeline.set(playerKey(oldHostId), JSON.stringify({ ...oldHost, isHost: false }), 'EX', config.sessionTtlSeconds)
+    if (newHost) pipeline.set(playerKey(newHostId), JSON.stringify({ ...newHost, isHost: true }), 'EX', config.sessionTtlSeconds)
+    await pipeline.exec()
+  })
 
 export const deleteSessionRoom = async (roomCode: string) => {
   const ids = await redis.smembers(roomPlayersKey(roomCode))
