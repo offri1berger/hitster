@@ -4,6 +4,7 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import cors from 'cors'
+import helmet from 'helmet'
 import type { ServerToClientEvents, ClientToServerEvents } from '@backspin-maestro/shared'
 import { registerRoomHandlers } from './socket/roomHandlers.js'
 import { registerGameHandlers } from './socket/gameHandlers.js'
@@ -23,8 +24,9 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   adapter: createAdapter(pubClient, subClient),
 })
 
+app.use(helmet())
 app.use(cors({ origin: process.env.CLIENT_URL ?? 'http://localhost:5173' }))
-app.use(express.json())
+app.use(express.json({ limit: '100kb' }))
 
 app.get('/health', async (_req, res) => {
   try {
@@ -79,3 +81,11 @@ const shutdown = () => {
 
 process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)
+
+process.on('unhandledRejection', (reason) => {
+  logger.error({ reason }, 'unhandledRejection')
+})
+process.on('uncaughtException', (err) => {
+  logger.error({ err }, 'uncaughtException')
+  process.exit(1)
+})
