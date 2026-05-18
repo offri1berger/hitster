@@ -66,6 +66,7 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
     const el = audioRef.current
     if (!el) return
     const unlock = () => {
+      if (!el.paused) return  // already playing — don't interrupt
       const wasMuted = el.muted
       el.muted = true
       el.play().then(() => { el.pause(); el.currentTime = 0; el.muted = wasMuted }).catch(() => {})
@@ -163,7 +164,7 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
           src={song.previewUrl}
           onLoadStart={() => { setPlaying(false); setProgress(0); setCurrentTime(0) }}
           onTimeUpdate={onTimeUpdate}
-          onEnded={() => { setPlaying(false); socket.emit('audio:pause') }}
+          onEnded={() => { setPlaying(false); if (isMyTurn) socket.emit('audio:pause') }}
         />
       </div>
     )
@@ -219,7 +220,7 @@ const AudioPlayer = ({ song, isMyTurn, compact = false }: Props) => {
         ref={audioRef}
         src={song.previewUrl}
         onTimeUpdate={onTimeUpdate}
-        onEnded={() => { setPlaying(false); socket.emit('audio:pause') }}
+        onEnded={() => { setPlaying(false); if (isMyTurn) socket.emit('audio:pause') }}
       />
     </div>
   )

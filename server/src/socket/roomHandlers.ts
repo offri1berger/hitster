@@ -18,6 +18,7 @@ import { requireConductor } from '../lib/authz.js'
 import { getSocketRoomCode } from '../lib/socketRoom.js'
 import { config } from '../lib/config.js'
 import { makeWrapper } from '../lib/handlerWrapper.js'
+import { gamesStarted, playersJoined, reconnects } from '../lib/metrics.js'
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents>
 type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents>
@@ -35,6 +36,7 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     const result = await joinRoomService(data, socket.id)
     if (!result.success) { cb(result); return }
 
+    playersJoined.inc()
     socket.join(data.roomCode)
     socket.to(data.roomCode).emit('player:joined', {
       id: result.playerId!,
@@ -53,6 +55,7 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     cancelDisconnectTimer(playerId)
     const result = await rejoinRoomService(playerId, roomCode, socket.id)
     if (result.success) {
+      reconnects.inc()
       socket.join(roomCode)
       socket.to(roomCode).emit('player:reconnected', playerId)
     }
@@ -66,6 +69,7 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     const result = await startGameService(roomCode, socket.id)
     if ('error' in result) { cb({ success: false, error: result.error }); return }
 
+    gamesStarted.inc()
     io.to(roomCode).emit('game:starting', result.gameState, result.players)
     if (result.song) io.to(roomCode).emit('song:new', result.song)
     cb({ success: true })

@@ -1,5 +1,6 @@
 import { parsePayload } from './validate.js'
 import { logger } from './logger.js'
+import { handlerErrors } from './metrics.js'
 
 type Limiter = { allow: (key: string) => boolean }
 type SchemaLike<T> = { safeParse(input: unknown): { success: true; data: T } | { success: false } }
@@ -26,6 +27,7 @@ export const makeWrapper = (socketId: string) => {
       await fn(data, cb)
     } catch (err) {
       logger.error({ err }, `${event} handler threw`)
+      handlerErrors.inc({ event })
       cb({ success: false, error: 'server_error' })
     }
   }
@@ -48,6 +50,7 @@ export const makeWrapper = (socketId: string) => {
       await fn(cb)
     } catch (err) {
       logger.error({ err }, `${event} handler threw`)
+      handlerErrors.inc({ event })
       cb({ success: false, error: 'server_error' })
     }
   }

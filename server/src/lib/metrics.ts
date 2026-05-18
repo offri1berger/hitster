@@ -43,6 +43,45 @@ export const deezerFetches = new Counter({
   registers: [registry],
 })
 
+export const gamesStarted = new Counter({
+  name: 'backspin_maestro_games_started_total',
+  help: 'Games started',
+  registers: [registry],
+})
+
+export const playersJoined = new Counter({
+  name: 'backspin_maestro_players_joined_total',
+  help: 'Players who joined a room (excludes rejoins)',
+  registers: [registry],
+})
+
+export const placements = new Counter({
+  name: 'backspin_maestro_placements_total',
+  help: 'Card placements',
+  labelNames: ['result'] as const, 
+  registers: [registry],
+})
+
+export const stealAttempts = new Counter({
+  name: 'backspin_maestro_steal_attempts_total',
+  help: 'Steal attempts',
+  labelNames: ['result'] as const, 
+  registers: [registry],
+})
+
+export const handlerErrors = new Counter({
+  name: 'backspin_maestro_handler_errors_total',
+  help: 'Unhandled errors caught by the socket handler wrapper',
+  labelNames: ['event'] as const,
+  registers: [registry],
+})
+
+export const reconnects = new Counter({
+  name: 'backspin_maestro_reconnects_total',
+  help: 'Successful player reconnects after disconnect',
+  registers: [registry],
+})
+
 // ── Gauges (computed fresh on each scrape) ──────────────────────────────────
 
 const queueWaiting = new Gauge({ name: 'backspin_maestro_queue_waiting', help: 'BullMQ waiting count', registers: [registry] })

@@ -29,6 +29,7 @@ import { logger } from '../lib/logger.js'
 import { getSocketRoomCode } from '../lib/socketRoom.js'
 import { toSong } from '../services/mappers.js'
 import { makeWrapper } from '../lib/handlerWrapper.js'
+import { placements, stealAttempts } from '../lib/metrics.js'
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents>
 type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents>
@@ -47,6 +48,7 @@ export const registerGameHandlers = (io: IoServer, socket: IoSocket) => {
     const result = await validatePlacement(roomCode, player.id, data.position)
     if ('error' in result) { cb({ success: false, error: result.error }); return }
 
+    placements.inc({ result: result.correct ? 'correct' : 'incorrect' })
     const placementPayload: PlacementResultPayload = {
       playerId: player.id,
       correct: result.correct,
@@ -66,6 +68,7 @@ export const registerGameHandlers = (io: IoServer, socket: IoSocket) => {
     if (!roomCode) { cb({ success: false, error: 'not_in_room' }); return }
 
     const outcome = await attemptSteal(roomCode, socket.id, data.targetPlayerId, data.position)
+    stealAttempts.inc({ result: outcome.ok ? 'success' : 'fail' })
     if (!outcome.ok) { cb({ success: false, error: outcome.error }); return }
 
     io.to(roomCode).emit('tokens:updated', outcome.stealerId, outcome.newStealerTokens)
