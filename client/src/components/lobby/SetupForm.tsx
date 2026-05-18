@@ -26,7 +26,7 @@ export interface SetupFormProps {
   submitting?: boolean
 }
 
-export const SetupForm = ({
+const SetupForm: React.FC<SetupFormProps> = ({  
   tab, onTabChange,
   name, onNameChange,
   roomCode, onRoomCodeChange,
@@ -217,3 +217,5 @@ export const SetupForm = ({
     </motion.div>
   )
 }
+
+export default SetupForm;

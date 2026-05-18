@@ -8,7 +8,7 @@ const STATS = [
   { val: '2-6',   label: 'PLAYERS', color: 'var(--color-hot)' },
 ] as const
 
-export function HeroPanel() {
+const HeroPanel = () => {
   return (
     <div className="relative h-full min-h-0 px-8 xl:px-14 py-6 xl:py-10 flex flex-col gap-4 xl:gap-6 boombox-bg overflow-y-auto">
       {/* Boombox hardware visualization */}
@@ -104,3 +104,5 @@ export function HeroPanel() {
     </div>
   )
 }
+
+export default HeroPanel;

@@ -276,6 +276,126 @@
           { "matcher": { "id": "byName", "options": "steal fail" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
         ]
       }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Guess Accuracy (/ min)",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "rate(backspin_maestro_guess_attempts_total{result='correct'}[5m]) * 60", "legendFormat": "correct" },
+        { "expr": "rate(backspin_maestro_guess_attempts_total{result='incorrect'}[5m]) * 60", "legendFormat": "incorrect" }
+      ],
+      "options": { "tooltip": { "mode": "multi" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 }, "unit": "ops" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "incorrect" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Song Skips & Pool Exhaustion (/ min)",
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "rate(backspin_maestro_song_skips_total[5m]) * 60", "legendFormat": "skips" },
+        { "expr": "rate(backspin_maestro_no_songs_left_total[5m]) * 60", "legendFormat": "no songs left" }
+      ],
+      "options": { "tooltip": { "mode": "multi" } },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 }, "unit": "ops" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "no songs left" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Rate Limit Hits (total)",
+      "gridPos": { "x": 0, "y": 40, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "sum(backspin_maestro_rate_limit_hits_total)", "instant": true, "legendFormat": "hits" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 100 }] } } }
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "Invalid Payloads (total)",
+      "gridPos": { "x": 6, "y": 40, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "sum(backspin_maestro_invalid_payload_total)", "instant": true, "legendFormat": "invalid" }],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 19,
+      "type": "bargauge",
+      "title": "Players per Game (distribution)",
+      "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (le) (backspin_maestro_players_per_game_bucket)",
+          "instant": true,
+          "legendFormat": "{{le}} players"
+        }
+      ],
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } }
+    },
+    {
+      "id": 20,
+      "type": "bargauge",
+      "title": "Avatar Choices",
+      "gridPos": { "x": 0, "y": 48, "w": 12, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "topk(20, backspin_maestro_avatar_chosen_total)",
+          "instant": true,
+          "legendFormat": "{{avatar}}"
+        }
+      ],
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] } } }
+    },
+    {
+      "id": 21,
+      "type": "bargauge",
+      "title": "Decade Filter Choices",
+      "gridPos": { "x": 12, "y": 48, "w": 6, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "backspin_maestro_decade_filter_chosen_total",
+          "instant": true,
+          "legendFormat": "{{filter}}"
+        }
+      ],
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "cyan", "value": null }] } } }
+    },
+    {
+      "id": 22,
+      "type": "bargauge",
+      "title": "Songs per Player Choices",
+      "gridPos": { "x": 18, "y": 48, "w": 6, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "backspin_maestro_songs_per_player_chosen_total",
+          "instant": true,
+          "legendFormat": "{{count}} songs"
+        }
+      ],
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } } }
     }
   ]
 }

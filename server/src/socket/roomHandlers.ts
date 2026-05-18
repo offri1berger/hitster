@@ -18,7 +18,14 @@ import { requireConductor } from '../lib/authz.js'
 import { getSocketRoomCode } from '../lib/socketRoom.js'
 import { config } from '../lib/config.js'
 import { makeWrapper } from '../lib/handlerWrapper.js'
-import { gamesStarted, playersJoined, reconnects } from '../lib/metrics.js'
+import { gamesStarted, playersJoined, reconnects, avatarChosen, decadeFilterChosen, songsPerPlayerChosen, playersPerGame } from '../lib/metrics.js'
+import type { DecadeFilter } from '@backspin-maestro/shared'
+
+const avatarLabel = (avatar: string | undefined) =>
+  avatar ? (avatar.split('/').pop()?.split('?')[0] ?? 'unknown').slice(0, 60) : 'none'
+
+const decadeLabel = (filter: DecadeFilter) =>
+  filter === 'all' ? 'all' : (Array.isArray(filter) ? filter.join('+') : filter)
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents>
 type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents>
@@ -28,6 +35,9 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
 
   socket.on('room:create', onPayload('room:create', roomLimiter, CreateRoomPayloadSchema, async (data, cb) => {
     const result = await createRoomService(data, socket.id)
+    avatarChosen.inc({ avatar: avatarLabel(data.avatar) })
+    decadeFilterChosen.inc({ filter: decadeLabel(data.settings.decadeFilter) })
+    songsPerPlayerChosen.inc({ count: String(data.settings.songsPerPlayer) })
     socket.join(result.roomCode)
     cb({ success: true, ...result })
   }) as Parameters<typeof socket.on<'room:create'>>[1])
@@ -37,6 +47,7 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     if (!result.success) { cb(result); return }
 
     playersJoined.inc()
+    avatarChosen.inc({ avatar: avatarLabel(data.avatar) })
     socket.join(data.roomCode)
     socket.to(data.roomCode).emit('player:joined', {
       id: result.playerId!,
@@ -70,6 +81,7 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     if ('error' in result) { cb({ success: false, error: result.error }); return }
 
     gamesStarted.inc()
+    playersPerGame.observe(result.players.length)
     io.to(roomCode).emit('game:starting', result.gameState, result.players)
     if (result.song) io.to(roomCode).emit('song:new', result.song)
     cb({ success: true })
@@ -113,6 +125,8 @@ export const registerRoomHandlers = (io: IoServer, socket: IoSocket) => {
     const result = await updateRoomSettingsService(socket.id, data)
     if ('error' in result) { cb({ success: false, error: result.error }); return }
 
+    decadeFilterChosen.inc({ filter: decadeLabel(data.decadeFilter) })
+    songsPerPlayerChosen.inc({ count: String(data.songsPerPlayer) })
     io.to(result.roomCode).emit('room:settingsUpdated', data)
     cb({ success: true })
   }) as Parameters<typeof socket.on<'room:updateSettings'>>[1])

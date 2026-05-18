@@ -29,7 +29,7 @@ import { logger } from '../lib/logger.js'
 import { getSocketRoomCode } from '../lib/socketRoom.js'
 import { toSong } from '../services/mappers.js'
 import { makeWrapper } from '../lib/handlerWrapper.js'
-import { placements, stealAttempts } from '../lib/metrics.js'
+import { placements, stealAttempts, songSkips, noSongsLeft, guessAttempts } from '../lib/metrics.js'
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents>
 type IoSocket = Socket<ClientToServerEvents, ServerToClientEvents>
@@ -125,8 +125,9 @@ export const registerGameHandlers = (io: IoServer, socket: IoSocket) => {
     if (player.tokens < 1) { cb({ success: false, error: 'insufficient_tokens' }); return }
 
     const song = await getRandomSong(roomCode, room.decadeFilter)
-    if (!song) { cb({ success: false, error: 'no_songs_left' }); return }
+    if (!song) { noSongsLeft.inc(); cb({ success: false, error: 'no_songs_left' }); return }
 
+    songSkips.inc()
     await updatePlayerTokens(player.id, player.tokens - 1)
     io.to(roomCode).emit('tokens:updated', player.id, player.tokens - 1)
 
@@ -150,6 +151,7 @@ export const registerGameHandlers = (io: IoServer, socket: IoSocket) => {
       const result = await handleGuessService(roomCode, socket.id, data.artist, data.title)
       if ('error' in result) { logger.warn({ err: result.error }, 'song:guess service returned error'); return }
 
+      guessAttempts.inc({ result: result.correct ? 'correct' : 'incorrect' })
       if (result.correct) {
         io.to(roomCode).emit('token:earned', result.playerId, result.tokens)
       }

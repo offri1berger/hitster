@@ -1,6 +1,6 @@
 import { parsePayload } from './validate.js'
 import { logger } from './logger.js'
-import { handlerErrors } from './metrics.js'
+import { handlerErrors, rateLimitHits, invalidPayloads } from './metrics.js'
 
 type Limiter = { allow: (key: string) => boolean }
 type SchemaLike<T> = { safeParse(input: unknown): { success: true; data: T } | { success: false } }
@@ -21,9 +21,9 @@ export const makeWrapper = (socketId: string) => {
     fn: (data: T, cb: AckCb) => Promise<void>
   ) => async (rawPayload: unknown, cb: AckCb) => {
     try {
-      if (limiter && !limiter.allow(socketId)) { cb({ success: false, error: 'rate_limited' }); return }
+      if (limiter && !limiter.allow(socketId)) { rateLimitHits.inc({ event }); cb({ success: false, error: 'rate_limited' }); return }
       const data = parsePayload(schema, rawPayload)
-      if (!data) { cb({ success: false, error: 'invalid_payload' }); return }
+      if (!data) { invalidPayloads.inc({ event }); cb({ success: false, error: 'invalid_payload' }); return }
       await fn(data, cb)
     } catch (err) {
       logger.error({ err }, `${event} handler threw`)
@@ -46,7 +46,7 @@ export const makeWrapper = (socketId: string) => {
     fn: (cb: AckCb) => Promise<void>
   ) => async (cb: AckCb) => {
     try {
-      if (limiter && !limiter.allow(socketId)) { cb({ success: false, error: 'rate_limited' }); return }
+      if (limiter && !limiter.allow(socketId)) { rateLimitHits.inc({ event }); cb({ success: false, error: 'rate_limited' }); return }
       await fn(cb)
     } catch (err) {
       logger.error({ err }, `${event} handler threw`)

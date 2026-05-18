@@ -82,6 +82,67 @@ export const reconnects = new Counter({
   registers: [registry],
 })
 
+export const avatarChosen = new Counter({
+  name: 'backspin_maestro_avatar_chosen_total',
+  help: 'Avatar selections — label is the filename extracted from the R2 URL',
+  labelNames: ['avatar'] as const,
+  registers: [registry],
+})
+
+export const decadeFilterChosen = new Counter({
+  name: 'backspin_maestro_decade_filter_chosen_total',
+  help: 'Decade filter selections at room create / settings update',
+  labelNames: ['filter'] as const,
+  registers: [registry],
+})
+
+export const songsPerPlayerChosen = new Counter({
+  name: 'backspin_maestro_songs_per_player_chosen_total',
+  help: 'Songs-per-player setting selections',
+  labelNames: ['count'] as const,
+  registers: [registry],
+})
+
+export const songSkips = new Counter({
+  name: 'backspin_maestro_song_skips_total',
+  help: 'Times a player spent a token to skip to a new song',
+  registers: [registry],
+})
+
+export const noSongsLeft = new Counter({
+  name: 'backspin_maestro_no_songs_left_total',
+  help: 'Times getRandomSong returned null (song pool exhausted for the decade filter)',
+  registers: [registry],
+})
+
+export const guessAttempts = new Counter({
+  name: 'backspin_maestro_guess_attempts_total',
+  help: 'Song title/artist guess attempts',
+  labelNames: ['result'] as const, // 'correct' | 'incorrect'
+  registers: [registry],
+})
+
+export const rateLimitHits = new Counter({
+  name: 'backspin_maestro_rate_limit_hits_total',
+  help: 'Requests blocked by the per-socket rate limiter',
+  labelNames: ['event'] as const,
+  registers: [registry],
+})
+
+export const invalidPayloads = new Counter({
+  name: 'backspin_maestro_invalid_payload_total',
+  help: 'Payloads that failed Zod validation',
+  labelNames: ['event'] as const,
+  registers: [registry],
+})
+
+export const playersPerGame = new Histogram({
+  name: 'backspin_maestro_players_per_game',
+  help: 'Number of players in each game at start',
+  buckets: [2, 3, 4, 5, 6],
+  registers: [registry],
+})
+
 // ── Gauges (computed fresh on each scrape) ──────────────────────────────────
 
 const queueWaiting = new Gauge({ name: 'backspin_maestro_queue_waiting', help: 'BullMQ waiting count', registers: [registry] })
