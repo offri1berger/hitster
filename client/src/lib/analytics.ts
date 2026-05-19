@@ -9,10 +9,13 @@ export const initAnalytics = () => {
   posthog.init(key, {
     api_host: (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? 'https://us.i.posthog.com',
     person_profiles: 'identified_only',
-    capture_pageview: false,
-    capture_pageleave: false,
+    capture_pageview: false, // we fire manually on route change
+    capture_pageleave: true,
   })
 }
+
+export const capturePageview = (path: string) =>
+  posthog.capture('$pageview', { $current_url: window.location.origin + path })
 
 export const identify = (playerId: string) => posthog.identify(playerId)
 

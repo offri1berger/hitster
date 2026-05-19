@@ -1,9 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { lazy, Suspense, useEffect } from 'react'
 import { useSocket } from './hooks/useSocket'
 import LobbyPage from './pages/LobbyPage'
 import ConnectionBanner from './components/ConnectionBanner'
 import KickNotice from './components/KickNotice'
+import { capturePageview } from './lib/analytics'
 
 const WaitingRoomPage = lazy(() => import('./pages/WaitingRoomPage'))
 const GamePage = lazy(() => import('./pages/GamePage'))
@@ -11,6 +12,8 @@ const GameOverPage = lazy(() => import('./pages/GameOverPage'))
 
 const App = () => {
   useSocket()
+  const location = useLocation()
+  useEffect(() => { capturePageview(location.pathname) }, [location.pathname])
 
   // Unlock the browser's audio context on first user interaction.
   // Must live here (not per-AudioPlayer) so it fires during the lobby/waiting

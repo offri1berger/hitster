@@ -137,7 +137,12 @@ export const useSocket = () => {
       },
 
       'placement:result': (result) => {
-        capture('card_placed', { correct: result.correct })
+        capture('card_placed', {
+          correct: result.correct,
+          song_title: result.song.title,
+          song_artist: result.song.artist,
+          song_year: result.song.year,
+        })
         const store = useGameStore.getState()
 
         if (result.correct) {

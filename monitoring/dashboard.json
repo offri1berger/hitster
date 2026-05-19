@@ -335,67 +335,19 @@
     },
     {
       "id": 19,
-      "type": "bargauge",
-      "title": "Players per Game (distribution)",
-      "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
+      "type": "stat",
+      "title": "Avg Players per Game",
+      "gridPos": { "x": 12, "y": 40, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         {
-          "expr": "sum by (le) (backspin_maestro_players_per_game_bucket)",
+          "expr": "sum(backspin_maestro_players_per_game_sum) / sum(backspin_maestro_players_per_game_count)",
           "instant": true,
-          "legendFormat": "{{le}} players"
+          "legendFormat": "avg"
         }
       ],
-      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
-      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } }
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "decimals": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } }
     },
-    {
-      "id": 20,
-      "type": "bargauge",
-      "title": "Avatar Choices",
-      "gridPos": { "x": 0, "y": 48, "w": 12, "h": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        {
-          "expr": "topk(20, backspin_maestro_avatar_chosen_total)",
-          "instant": true,
-          "legendFormat": "{{avatar}}"
-        }
-      ],
-      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
-      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] } } }
-    },
-    {
-      "id": 21,
-      "type": "bargauge",
-      "title": "Decade Filter Choices",
-      "gridPos": { "x": 12, "y": 48, "w": 6, "h": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        {
-          "expr": "backspin_maestro_decade_filter_chosen_total",
-          "instant": true,
-          "legendFormat": "{{filter}}"
-        }
-      ],
-      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
-      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "cyan", "value": null }] } } }
-    },
-    {
-      "id": 22,
-      "type": "bargauge",
-      "title": "Songs per Player Choices",
-      "gridPos": { "x": 18, "y": 48, "w": 6, "h": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "targets": [
-        {
-          "expr": "backspin_maestro_songs_per_player_chosen_total",
-          "instant": true,
-          "legendFormat": "{{count}} songs"
-        }
-      ],
-      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] }, "displayMode": "gradient" },
-      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } } }
-    }
   ]
 }
